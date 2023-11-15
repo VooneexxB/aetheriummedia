@@ -1,0 +1,171 @@
+import groovy.json.JsonOutput
+
+plugins {
+    id 'java'
+    id 'idea'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+/* JAR INFO */
+version = modversion
+group = modgroup
+base { archivesName = "${modid}" }
+
+
+/* JAVA CONFIG */
+java {
+    withSourcesJar()
+    withJavadocJar()
+
+    /* SOURCE AND TARGET JAVA VERSION */
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+sourcesJar {
+    exclude("videolan/**.zip")
+}
+
+println "Gradle Java: ${JavaVersion.current()}"
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
+/* PROJECT REPOSITORIES */
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spongepowered.org/maven" }
+    maven { url "https://maven.tterrag.com/" }
+    maven {
+        url "https://www.cursemaven.com"
+        content { includeGroup "curse.maven" }
+    }
+    maven { url 'https://jitpack.io' }
+}
+
+/* CONFIGURATION TO SHADOW DEPENDENCIES - */
+configurations {
+    library
+    implementation.extendsFrom library
+}
+
+dependencies {
+    // FabricLoader (just to give loading support on FABRIC)
+    compileOnly("net.fabricmc:fabric-loader:${project.fabricv}") {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+
+    // DEPENDENCIES INCLUDED IN MINECRAFT
+    compileOnly 'net.java.dev.jna:jna:4.4.0'
+    compileOnly 'net.java.dev.jna:platform:3.4.0'
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.15.0'
+    compileOnly 'org.apache.logging.log4j:log4j-core:2.17.1'
+    compileOnly 'org.apache.commons:commons-lang3:3.12.0'
+    compileOnly 'commons-io:commons-io:2.7'
+    compileOnly 'com.google.code.gson:gson:2.10.1'
+    compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
+    compileOnly 'org.ow2.asm:asm-tree:9.1'
+    compileOnly('org.spongepowered:mixin:0.8.5') {
+        exclude module: 'guava'
+        exclude module: 'commons-io'
+        exclude module: 'gson'
+    }
+    // SUB-PROJECTS
+    compileOnly(project(":lib-forge")) // MOCKED FORGE CLASSES - REMOVED ON JAR
+    compileOnly(project(":lib-neoforge")) // MOCKED NEOFORGE CLASSES- REMOVED ON JAR
+
+    // GROOVY
+    compileOnly group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.9'
+
+    // SUB-LIBRARIES
+    library(project(":lib-vlcj"))
+    library(project(":lib-extras"))
+
+    // LIBRARIES TO BE SHADOW
+    library 'com.github.sealedtx:java-youtube-downloader:3.2.3'
+    library 'com.fasterxml.jackson.core:jackson-databind:2.13.4.2'
+    library 'com.squareup.retrofit2:retrofit:2.6.4'
+    library 'org.apache.commons:commons-compress:1.23.0'
+    library ('com.squareup.retrofit2:converter-gson:2.9.0') {
+        exclude group: 'com.google.code.gson', module: 'gson'
+    }
+
+    // TEST
+    testImplementation 'org.apache.logging.log4j:log4j-api:2.20.0'
+    testImplementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+    testImplementation 'org.apache.commons:commons-lang3:3.12.0'
+    testImplementation 'commons-io:commons-io:2.7'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+
+    testImplementation 'com.github.sealedtx:java-youtube-downloader:3.2.3'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.13.4.2'
+    testImplementation 'com.squareup.retrofit2:retrofit:2.6.4'
+    testImplementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+}
+
+// Process target resources with mod info
+processResources {
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta', 'fabric.mod.json', "mcmod.info", "watermedia/version.cfg"]) {
+        def combinedMap = [:]
+        combinedMap.putAll(rootProject.properties)
+        combinedMap.putAll([
+                modauthorlist: JsonOutput.toJson(modauthor.trim().replaceAll(" ", "").split(","))
+        ])
+
+        expand(combinedMap)
+    }
+}
+
+// ShadowJar task (run this task to make a built JAR.
+shadowJar {
+
+    // Add relocation rules for each dependency
+    relocate 'com.github', 'me.lib720'
+    relocate 'com.alibaba', 'me.lib720.alibaba'
+    relocate 'com.mpatric', 'me.lib720.mpatric'
+    relocate 'org.mozilla', 'me.lib720.mozilla'
+    relocate 'okhttp3', 'me.lib720.okhttp3'
+    relocate 'okio', 'me.lib720.okio'
+    relocate 'com.fasterxml', 'me.lib720'
+    relocate 'retrofit2', 'me.lib720.retrofit2'
+    relocate 'uk.co', 'me.lib720'
+
+    exclude "META-INF/versions/**"
+    exclude "META-INF/proguard/**"
+    exclude "META-INF/maven/**"
+    exclude "META-INF/LICENSE.*"
+    exclude "META-INF/LICENSE"
+    exclude "META-INF/NOTICE.**"
+    exclude "META-INF/NOTICE"
+    exclude "META-INF/retrofit.**"
+
+    mergeServiceFiles()
+    archiveFileName = "${modid}-${modversion}.jar"
+}
+
+// Make the reobfJar task depend on shadowJar
+tasks.build.dependsOn shadowJar
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+}
+tasks.processResources.outputs.upToDateWhen { false }
+
+// DO NOT RUN
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"       : modname,
+                "Specification-Vendor"      : modauthor,
+                "Specification-Version"     : modversion,
+                "Implementation-Title"      : modname,
+                "Implementation-Version"    : modversion,
+                "Implementation-Vendor"     : modauthor,
+                "Implementation-Timestamp"  : new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+//                "TweakClass"                : "org.spongepowered.asm.launch.MixinTweaker",
+//                "TweakOrder"                : 0,
+                "MixinConfigs"              : "watermedia.mixin.json",
+                "ForceLoadAsMod"            : "true"
+        ])
+    }
+    from(configurations.library.collect { it.isDirectory() ? it : zipTree(it) }) {
+        exclude 'META-INF', 'META-INF/**'
+    }
+}

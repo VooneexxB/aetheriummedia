@@ -1,0 +1,28 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://maven.fabricmc.net/' }
+        maven { url 'https://repo.spongepowered.org/maven' }
+        maven { url 'https://maven.parchmentmc.org' }
+        maven {
+            url 'https://www.cursemaven.com'
+            content { includeGroup "curse.maven" }
+        }
+        maven {
+            name = 'MinecraftForge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+    }
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'org.codehaus.groovy', name: 'groovy-all', version: '3.0.9'
+    }
+}
+
+include 'lib-vlcj', 'lib-extras', 'lib-forge', 'lib-neoforge'
