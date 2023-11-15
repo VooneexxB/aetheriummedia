@@ -48,6 +48,9 @@ configurations {
 }
 
 dependencies {
+// doesn't require fg.debof() or any debofuscation tool
+    implementation 'com.github.VooneexxB.aetheriummedia:build:1.0'
+
     // FabricLoader (just to give loading support on FABRIC)
     compileOnly("net.fabricmc:fabric-loader:${project.fabricv}") {
         exclude group: 'org.slf4j', module: 'slf4j-api'
